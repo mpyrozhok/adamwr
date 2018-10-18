@@ -98,8 +98,7 @@ class CosineLRWithRestarts():
     def _set_batch_size(self):
         d, r = divmod(self.epoch_size, self.batch_size)
         batches_in_epoch = d + 2 if r > 0 else d + 1
-        self.batch_increment = (i for i in torch.linspace(0, 1,
-                                                          batches_in_epoch))
+        self.batch_increment = iter(torch.linspace(0, 1, batches_in_epoch))
 
     def step(self):
         self.last_epoch += 1
