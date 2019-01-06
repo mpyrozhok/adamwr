@@ -107,7 +107,17 @@ class CosineLRWithRestarts():
         self.batch_step()
 
     def batch_step(self):
-        t_cur = self.t_epoch + next(self.batch_increment)
+        try:
+            t_cur = self.t_epoch + next(self.batch_increment)
+        except (StopIteration):
+            raise StopIteration("Epoch size and batch size used in the "
+                                "training loop and while initializing "
+                                "scheduler should be the same.")
+        except (AttributeError):
+            raise AttributeError("Please check if you're calling scheduler's "
+                                 "step() method at the beginning of the "
+                                 "epoch.")
+
         for param_group, (lr, weight_decay) in zip(self.optimizer.param_groups,
                                                    self.get_lr(t_cur)):
             param_group['lr'] = lr
