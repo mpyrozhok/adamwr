@@ -50,7 +50,7 @@ class CosineLRWithRestarts(_LRScheduler):
 
         self.last_epoch = last_epoch
         self.batch_size = batch_size
-        self.iteration = 1
+        self.iteration = 0
         self.epoch_size = epoch_size
         self.eta_threshold = eta_threshold
         self.t_mult = t_mult
