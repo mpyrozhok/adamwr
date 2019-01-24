@@ -1,9 +1,10 @@
 from torch.optim import Optimizer
+from torch.optim.lr_scheduler import _LRScheduler
 import math
-import torch
+import numpy as np
 
 
-class CosineLRWithRestarts():
+class CosineLRWithRestarts(_LRScheduler):
     """Decays learning rate with cosine annealing, normalizes weight decay
     hyperparameter value, implements restarts.
     https://arxiv.org/abs/1711.05101
@@ -49,6 +50,7 @@ class CosineLRWithRestarts():
 
         self.last_epoch = last_epoch
         self.batch_size = batch_size
+        self.iteration = 1
         self.epoch_size = epoch_size
         self.eta_threshold = eta_threshold
         self.t_mult = t_mult
@@ -58,6 +60,8 @@ class CosineLRWithRestarts():
         self.restart_period = restart_period
         self.restarts = 0
         self.t_epoch = -1
+        self.batch_increments = []
+        self._set_batch_increment()
 
     def _schedule_eta(self):
         """
@@ -95,28 +99,26 @@ class CosineLRWithRestarts():
 
         return zip(lrs, weight_decays)
 
-    def _set_batch_size(self):
+    def _set_batch_increment(self):
         d, r = divmod(self.epoch_size, self.batch_size)
         batches_in_epoch = d + 2 if r > 0 else d + 1
-        self.batch_increment = iter(torch.linspace(0, 1, batches_in_epoch))
+        self.iteration = 0
+        self.batch_increments = list(np.linspace(0, 1, batches_in_epoch))
 
     def step(self):
         self.last_epoch += 1
         self.t_epoch += 1
-        self._set_batch_size()
+        self._set_batch_increment()
         self.batch_step()
 
     def batch_step(self):
         try:
-            t_cur = self.t_epoch + next(self.batch_increment)
-        except (StopIteration):
-            raise StopIteration("Epoch size and batch size used in the "
-                                "training loop and while initializing "
-                                "scheduler should be the same.")
-        except (AttributeError):
-            raise AttributeError("Please check if you're calling scheduler's "
-                                 "step() method at the beginning of the "
-                                 "epoch.")
+            t_cur = self.t_epoch + self.batch_increments[self.iteration]
+            self.iteration += 1
+        except (IndexError):
+            raise RuntimeError("Epoch size and batch size used in the "
+                               "training loop and while initializing "
+                               "scheduler should be the same.")
 
         for param_group, (lr, weight_decay) in zip(self.optimizer.param_groups,
                                                    self.get_lr(t_cur)):
