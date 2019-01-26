@@ -5,11 +5,14 @@ Cosine annealing scheduler with restarts allows optimizer to converge to a (poss
 
 # Example:
 ```python
-    optimizer = AdamW(lr=1e-3, weight_decay=1e-5)
-    scheduler = CosineLRWithRestarts(optimizer, 32, 1024, restart_period=5, t_mult=1.2)
+    batch_size = 32
+    epoch_size = 1024
+    model = resnet()
+    optimizer = AdamW(model.parameters(), lr=1e-3, weight_decay=1e-5)
+    scheduler = CosineLRWithRestarts(optimizer, batch_size, epoch_size, restart_period=5, t_mult=1.2)
     for epoch in range(100):
         scheduler.step()
-        train(...)
+        train_for_every_batch(...)
             ...
             optimizer.zero_grad()
             loss.backward()
