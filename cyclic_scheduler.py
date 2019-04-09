@@ -1,7 +1,7 @@
-import torch
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler
 import math
+import torch
 
 
 class ReduceMaxLROnRestart:
@@ -33,8 +33,11 @@ class ArccosinePolicy:
 
 
 class TriangularPolicy:
+    def __init__(self, triangular_step=0.5):
+        self.triangular_step = triangular_step
+
     def __call__(self, t_cur, restart_period):
-        inflection_point = 0.5 * restart_period
+        inflection_point = self.triangular_step * restart_period
         point_of_triangle = (t_cur / inflection_point
                              if t_cur < inflection_point
                              else 1.0 - (t_cur - inflection_point)
@@ -52,9 +55,14 @@ class CyclicLRWithRestarts(_LRScheduler):
         batch_size: minibatch size
         epoch_size: training samples per epoch
         restart_period: epoch count in the first restart period
-        t_mult: multiplication factor by which the next restart period will extend/shrink
-        policy: ["cosine", "arccosine", "triangular"]
-        eta_policy: ["reduce_by_half", "exponential"]
+        t_mult: multiplication factor by which the next restart period will expand/shrink
+        policy: ["cosine", "arccosine", "triangular", "triangular2", "exp_range"]
+        min_lr: minimum allowed learning rate
+        verbose: print a message on every restart
+        gamma: exponent used in "exp_range" policy
+        eta_on_restart_cb: callback executed on every restart, adjusts max or min lr
+        eta_on_iteration_cb: callback executed on every iteration, adjusts max or min lr
+        triangular_step: adjusts ratio of increasing/decreasing phases for triangular policy
 
 
     Example:
@@ -72,8 +80,9 @@ class CyclicLRWithRestarts(_LRScheduler):
 
     def __init__(self, optimizer, batch_size, epoch_size, restart_period=100,
                  t_mult=2, last_epoch=-1, verbose=False,
-                 policy="cosine", policy_fn=None, min_lr=1e-8,
-                 eta_on_restart_cb=None, eta_on_iteration_cb=None):
+                 policy="cosine", policy_fn=None, min_lr=1e-7,
+                 eta_on_restart_cb=None, eta_on_iteration_cb=None,
+                 gamma=1.0, triangular_step=0.5):
 
         if not isinstance(optimizer, Optimizer):
             raise TypeError('{} is not an Optimizer'.format(
@@ -102,6 +111,8 @@ class CyclicLRWithRestarts(_LRScheduler):
                                    in optimizer.param_groups]
 
         self.policy = policy
+        self.eta_on_restart_cb = eta_on_restart_cb
+        self.eta_on_iteration_cb = eta_on_iteration_cb
         if policy_fn is not None:
             self.policy_fn = policy_fn
         elif self.policy == "cosine":
@@ -109,7 +120,13 @@ class CyclicLRWithRestarts(_LRScheduler):
         elif self.policy == "arccosine":
             self.policy_fn = ArccosinePolicy()
         elif self.policy == "triangular":
+            self.policy_fn = TriangularPolicy(triangular_step=triangular_step)
+        elif self.policy == "triangular2":
+            self.policy_fn = TriangularPolicy(triangular_step=triangular_step)
+            self.eta_on_restart_cb = ReduceMaxLROnRestart(ratio=0.5)
+        elif self.policy == "exp_range":
             self.policy_fn = TriangularPolicy()
+            self.eta_on_iteration_cb = ExpReduceMaxLROnIteration(gamma=gamma)
 
         self.last_epoch = last_epoch
         self.batch_size = batch_size
@@ -127,8 +144,6 @@ class CyclicLRWithRestarts(_LRScheduler):
 
         self.eta_min = 0
         self.eta_max = 1
-        self.eta_on_restart_cb = eta_on_restart_cb
-        self.eta_on_iteration_cb = eta_on_iteration_cb
 
         self.end_of_period = False
         self.batch_increments = []

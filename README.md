@@ -1,11 +1,17 @@
 # AdamW optimizer and cosine learning rate annealing with restarts
 
-This repository contains an implementation of AdamW optimization algorithm and cosine learning rate scheduler described in https://arxiv.org/abs/1711.05101. AdamW implementation is straightforward and does not differ much from existing Adam implementation for PyTorch, except that it separates weight decaying from batch gradient calculations.
+This repository contains an implementation of AdamW optimization algorithm and cosine learning rate scheduler described in [Decoupled Weight Decay Regularization](https://arxiv.org/abs/1711.05101). AdamW implementation is straightforward and does not differ much from existing Adam implementation for PyTorch, except that it separates weight decaying from batch gradient calculations.
 Cosine annealing scheduler with restarts allows model to converge to a (possibly) different local minimum on every restart and normalizes weight decay hyperparameter value according to the length of restart period.
 Unlike schedulers presented in standard PyTorch scheduler suite this scheduler adjusts optimizer's learning rate not on every epoch, but on every batch update, according to the paper.
-Besides ["cosine"](https://www.google.com/search?q=(cos(x%2Fpi)%2B1)%2F2) there are two more learning rate policies available: ["arccosine"](https://www.google.com/search?q=arccos(2*x-1)%2Fpi), which has steeper profile at the limiting points and ["triangular"](https://www.google.com/search?q=1-abs(x*2-1)), which implements triangular lr policy proposed in https://arxiv.org/pdf/1506.01186v6.pdf.
+## Cyclical Learning Rates
+Besides ["cosine"](https://www.google.com/search?q=(cos(x%2Fpi)%2B1)%2F2) and ["arccosine"](https://www.google.com/search?q=arccos(2*x-1)%2Fpi) policies (`arccosine` has steeper profile at the limiting points), there are ["triangular"](https://www.google.com/search?q=1-abs(x*2-1)), `triangular2` and `exp_range`, which implement policies proposed in [Cyclical Learning Rates for Training Neural Networks](https://arxiv.org/abs/1506.01186).
 The ratio of increasing and decreasing phases for triangular policy could be adjusted with `triangular_step` parameter. Minimum allowed lr is adjusted by `min_lr` parameter.
-This scheduler could be used with AdamW and other PyTorch optimizers.
+
+* `triangular` schedule is enabled by passing `policy="triangular"` parameter.
+* `triangular2` schedule reduces maximum lr by half on each restart cycle and is enabled by combining parameters `policy="triangular", eta_on_restart_cb=ReduceMaxLROnRestart(ratio=0.5)`. The `ratio` parameter regulates the factor by which lr is scaled on each restart.
+* `exp_range` schedule exponentially scales maximum lr depending on iteration count. The exponent is set by `gamma` parameter.
+
+These schedules could be combined with shrinking/expanding restart periods, weight decay normalization and could be used with AdamW and other PyTorch optimizers.
 
 # Example:
 ```python
