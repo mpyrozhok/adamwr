@@ -125,7 +125,7 @@ class CyclicLRWithRestarts(_LRScheduler):
             self.policy_fn = TriangularPolicy(triangular_step=triangular_step)
             self.eta_on_restart_cb = ReduceMaxLROnRestart(ratio=0.5)
         elif self.policy == "exp_range":
-            self.policy_fn = TriangularPolicy()
+            self.policy_fn = TriangularPolicy(triangular_step=triangular_step)
             self.eta_on_iteration_cb = ExpReduceMaxLROnIteration(gamma=gamma)
 
         self.last_epoch = last_epoch
