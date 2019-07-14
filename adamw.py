@@ -86,11 +86,6 @@ class AdamW(Optimizer):
                 bias_correction2 = 1 - beta2 ** state['step']
                 step_size = group['lr'] * math.sqrt(bias_correction2) / bias_correction1
 
-                if group['weight_decay'] != 0:
-                    decayed_weights = torch.mul(p.data, group['weight_decay'])
-                    p.data.addcdiv_(-step_size, exp_avg, denom)
-                    p.data.sub_(decayed_weights)
-                else:
-                    p.data.addcdiv_(-step_size, exp_avg, denom)
+                p.data.mul_(1 - group['weight_decay']).addcdiv_(-step_size, exp_avg, denom)
 
         return loss
